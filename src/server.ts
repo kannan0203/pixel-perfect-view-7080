@@ -47,6 +47,20 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      if (new URL(request.url).pathname === "/api/health") {
+        if (request.method !== "GET") {
+          return Response.json(
+            { error: "Method not allowed" },
+            { status: 405, headers: { allow: "GET" } },
+          );
+        }
+
+        return Response.json(
+          { status: "ok", service: "BizInsight AI" },
+          { headers: { "cache-control": "no-store" } },
+        );
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
