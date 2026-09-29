@@ -172,12 +172,12 @@ export function periodKey(raw: unknown): { key: string; sort: number } | null {
   if (isBlank(raw)) return null;
   const s = String(raw).trim();
   const monthName = MONTHS.findIndex((m) => s.toLowerCase().startsWith(m.toLowerCase()));
-  if (monthName >= 0 && !/\d{4}/.test(s)) return { key: MONTHS[monthName], sort: monthName };
+  if (monthName >= 0 && !/\d{4}/.test(s)) return { key: MONTHS[monthName]!, sort: monthName };
   const parsed = Date.parse(s);
   if (!Number.isNaN(parsed)) {
     const d = new Date(parsed);
     return {
-      key: `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`,
+      key: `${MONTHS[d.getUTCMonth()]!} ${d.getUTCFullYear()}`,
       sort: d.getUTCFullYear() * 12 + d.getUTCMonth(),
     };
   }
@@ -217,7 +217,7 @@ function percentile(sorted: number[], p: number) {
   const pos = (sorted.length - 1) * p;
   const lo = Math.floor(pos);
   const hi = Math.ceil(pos);
-  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+  return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (pos - lo);
 }
 
 export function detectAnomalies(ds: Dataset, column: string): AnomalyReport | null {
@@ -291,8 +291,8 @@ export function generateInsights(ds: Dataset, profile: ColumnProfile): Insight[]
   if (profile.dateColumn) {
     const series = monthlySeries(ds, profile.dateColumn, value);
     if (series.length >= 2) {
-      const last = series[series.length - 1];
-      const prev = series[series.length - 2];
+      const last = series[series.length - 1]!;
+      const prev = series[series.length - 2]!;
       const change = prev.value === 0 ? 0 : ((last.value - prev.value) / prev.value) * 100;
       insights.push({
         title: `${value} ${change >= 0 ? "increased" : "decreased"} by ${fmtNumber(Math.abs(change))}% in ${last.label} versus ${prev.label}`,
@@ -309,7 +309,7 @@ export function generateInsights(ds: Dataset, profile: ColumnProfile): Insight[]
   if (profile.productColumn) {
     const grouped = groupSum(ds, profile.productColumn, value);
     if (grouped.length > 0) {
-      const top = grouped[0];
+      const top = grouped[0]!;
       const share = kpis && kpis.total !== 0 ? (top.value / kpis.total) * 100 : 0;
       insights.push({
         title: `${top.label} leads on ${value} with ${fmtNumber(top.value)}`,
@@ -323,8 +323,8 @@ export function generateInsights(ds: Dataset, profile: ColumnProfile): Insight[]
   if (profile.regionColumn) {
     const grouped = groupSum(ds, profile.regionColumn, value);
     if (grouped.length > 0) {
-      const top = grouped[0];
-      const bottom = grouped[grouped.length - 1];
+      const top = grouped[0]!;
+      const bottom = grouped[grouped.length - 1]!;
       insights.push({
         title: `${top.label} is the strongest ${profile.regionColumn} (${fmtNumber(top.value)})`,
         supporting: `Weakest is ${bottom.label} at ${fmtNumber(bottom.value)}`,

@@ -21,7 +21,7 @@ export async function generateExplanation(messages: ModelMessage[], signal?: Abo
   const result = streamText({
     model: provider.responses(MODEL),
     messages,
-    abortSignal: signal,
+    ...(signal ? { abortSignal: signal } : {}),
     providerOptions: {
       openai: {
         store: false,

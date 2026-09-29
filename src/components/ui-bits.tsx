@@ -9,11 +9,11 @@ export function Panel({
   children,
   className,
 }: {
-  title?: string;
-  subtitle?: string;
-  right?: ReactNode;
+  title?: string | undefined;
+  subtitle?: string | undefined;
+  right?: ReactNode | undefined;
   children: ReactNode;
-  className?: string;
+  className?: string | undefined;
 }) {
   return (
     <section className={cn("panel p-5 sm:p-6", className)}>
@@ -31,7 +31,7 @@ export function Panel({
   );
 }
 
-export function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+export function Stat({ label, value, hint }: { label: string; value: string; hint?: string | undefined }) {
   return (
     <div className="rounded-lg border border-border bg-surface/70 p-4">
       <p className="kpi-label">{label}</p>

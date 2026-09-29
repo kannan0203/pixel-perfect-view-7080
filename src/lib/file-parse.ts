@@ -36,12 +36,12 @@ export async function parseBusinessFile(file: File): Promise<Dataset> {
     const workbook = XLSX.read(buffer, { cellDates: true });
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) throw new Error("The workbook has no sheets.");
-    const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName], {
+    const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[sheetName]!, {
       defval: null,
       raw: true,
     });
     if (json.length === 0) throw new Error("The first sheet is empty.");
-    const columns = Object.keys(json[0]).map((c) => c.trim());
+    const columns = Object.keys(json[0]!).map((c) => c.trim());
     const remapped = json.map((r) => {
       const out: Record<string, unknown> = {};
       Object.entries(r).forEach(([k, v]) => {
