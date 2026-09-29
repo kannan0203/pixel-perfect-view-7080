@@ -1,7 +1,27 @@
 import "./lib/error-capture";
 
+import { answerQuestion } from "./lib/query-engine";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { z } from "zod";
+
+const analyticsRequestSchema = z
+  .object({
+    question: z.string().trim().min(1).max(500),
+    columns: z.array(z.string().trim().min(1).max(100)).min(1).max(50),
+    rows: z
+      .array(
+        z.record(z.string(), z.union([z.string().max(2000), z.number().finite(), z.null()])),
+      )
+      .min(1)
+      .max(5000),
+  })
+  .strict()
+  .superRefine(({ columns }, context) => {
+    if (new Set(columns).size !== columns.length) {
+      context.addIssue({ code: "custom", message: "Column names must be unique.", path: ["columns"] });
+    }
+  });
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -59,6 +79,50 @@ export default {
           { status: "ok", service: "BizInsight AI" },
           { headers: { "cache-control": "no-store" } },
         );
+      }
+
+      if (new URL(request.url).pathname === "/api/analytics") {
+        if (request.method !== "POST") {
+          return Response.json(
+            { error: "Method not allowed" },
+            { status: 405, headers: { allow: "POST" } },
+          );
+        }
+
+        const contentLength = Number(request.headers.get("content-length"));
+        if (Number.isFinite(contentLength) && contentLength > 2_000_000) {
+          return Response.json({ error: "Request body exceeds the 2 MB limit." }, { status: 413 });
+        }
+
+        let payload: unknown;
+        try {
+          payload = await request.json();
+        } catch {
+          return Response.json({ error: "Request body must be valid JSON." }, { status: 400 });
+        }
+
+        const parsed = analyticsRequestSchema.safeParse(payload);
+        if (!parsed.success) {
+          return Response.json(
+            { error: "Invalid analytics request.", details: parsed.error.issues },
+            { status: 400 },
+          );
+        }
+
+        const { question, columns, rows } = parsed.data;
+        const dataset = {
+          fileName: "api-request",
+          columns,
+          rows: rows.map((row) =>
+            Object.fromEntries(columns.map((column) => [column, row[column] ?? null])),
+          ),
+        };
+
+        try {
+          return Response.json(answerQuestion(question, dataset));
+        } catch {
+          return Response.json({ error: "Unable to analyze this dataset." }, { status: 422 });
+        }
       }
 
       const handler = await getServerEntry();

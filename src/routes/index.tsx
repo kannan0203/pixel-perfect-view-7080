@@ -82,6 +82,26 @@ function parseSections(text: string) {
   return out.filter((s) => s.body.length > 0);
 }
 
+function buildLocalExplanation(result: QueryResult) {
+  const keyFacts = result.metrics
+    .slice(0, 3)
+    .map((metric) => `${metric.label}: ${metric.value}${metric.calculation ? ` (${metric.calculation})` : ""}`)
+    .join("; ");
+
+  return [
+    "ANSWER:",
+    result.headline,
+    "REASONING:",
+    `${result.aggregation}. ${result.filters}.${keyFacts ? ` Key figures: ${keyFacts}.` : ""}`,
+    "BUSINESS IMPACT:",
+    "This summarizes the observed data; it does not establish what caused the pattern.",
+    "RECOMMENDATION:",
+    result.insufficient
+      ? "Add more relevant records or improve data coverage before drawing a conclusion."
+      : "Review the supporting metrics and source rows, then gather context about possible causes before acting.",
+  ].join("\n");
+}
+
 function ChartFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-64 w-full">
@@ -150,6 +170,7 @@ function Home() {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [aiText, setAiText] = useState<string>("");
   const [aiError, setAiError] = useState<string | null>(null);
+  const [usingFallbackExplanation, setUsingFallbackExplanation] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const explain = useServerFn(explainInsight);
@@ -160,26 +181,35 @@ function Home() {
       setResult(computed);
       setAiText("");
       setAiError(null);
-      const response = await explain({
-        data: {
-          question: asked,
-          datasetSummary: `File: ${dataset.fileName}. Rows: ${dataset.rows.length}. Columns: ${dataset.columns.join(", ")}.`,
-          computed: JSON.stringify(
-            {
-              headline: computed.headline,
-              aggregation: computed.aggregation,
-              filters: computed.filters,
-              columnsUsed: computed.columnsUsed,
-              metrics: computed.metrics,
-              insufficient: computed.insufficient ?? false,
-            },
-            null,
-            1,
-          ).slice(0, 7500),
-        },
-      });
-      if (!response.ok) setAiError(response.error ?? "AI explanation unavailable.");
-      else setAiText(response.text);
+      setUsingFallbackExplanation(false);
+      try {
+        const response = await explain({
+          data: {
+            question: asked,
+            datasetSummary: `File: ${dataset.fileName}. Rows: ${dataset.rows.length}. Columns: ${dataset.columns.join(", ")}.`,
+            computed: JSON.stringify(
+              {
+                headline: computed.headline,
+                aggregation: computed.aggregation,
+                filters: computed.filters,
+                columnsUsed: computed.columnsUsed,
+                metrics: computed.metrics,
+                insufficient: computed.insufficient ?? false,
+              },
+              null,
+              1,
+            ).slice(0, 7500),
+          },
+        });
+        if (response.ok) setAiText(response.text);
+        else {
+          setAiText(buildLocalExplanation(computed));
+          setUsingFallbackExplanation(true);
+        }
+      } catch {
+        setAiText(buildLocalExplanation(computed));
+        setUsingFallbackExplanation(true);
+      }
     },
   });
 
@@ -436,6 +466,11 @@ function Home() {
 
                 {askMutation.isPending && (
                   <p className="text-sm text-muted-foreground">Writing the explanation from the calculated values…</p>
+                )}
+                {usingFallbackExplanation && (
+                  <p className="text-sm text-muted-foreground">
+                    AI is unavailable, so this explanation uses the calculated results only.
+                  </p>
                 )}
                 {aiError && (
                   <p className="text-sm text-destructive">
