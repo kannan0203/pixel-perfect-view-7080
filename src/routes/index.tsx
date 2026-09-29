@@ -73,7 +73,7 @@ function parseSections(text: string) {
     const match = line.match(pattern) ?? line.match(new RegExp(`^(${SECTION_LABELS.join("|")}):\\s*(.+)$`, "i"));
     if (match) {
       if (current) out.push(current);
-      current = { label: match[1].toUpperCase(), body: (match[2] ?? "").trim() };
+      current = { label: match[1]!.toUpperCase(), body: (match[2] ?? "").trim() };
     } else if (current) {
       current.body = current.body ? `${current.body}\n${line}` : line;
     }

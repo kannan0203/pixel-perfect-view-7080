@@ -25,7 +25,7 @@ export function buildSampleDataset(): Dataset {
         const seasonal = 1 + mIdx * 0.04 - (product === "Cascade Tea" && mIdx >= 2 ? 0.22 : 0);
         const regionFactor = region === "South" ? 1.25 : region === "West" ? 0.78 : 1;
         const noise = 0.85 + rand() * 0.3;
-        const revenue = Math.round((BASE[product] / 4) * seasonal * regionFactor * noise);
+        const revenue = Math.round((BASE[product]! / 4) * seasonal * regionFactor * noise);
         const units = Math.max(1, Math.round(revenue / (120 + rand() * 60)));
         rows.push({
           order_date: `${month}-15`,

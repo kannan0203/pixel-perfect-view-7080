@@ -104,14 +104,14 @@ export function answerQuestion(question: string, ds: Dataset, profile?: ColumnPr
     if (!p.dateColumn) return insufficient(question, "No date or period column was detected.");
     const series = monthlySeries(ds, p.dateColumn, value);
     if (series.length < 2) return insufficient(question, "Fewer than two periods available for comparison.");
-    const best = [...series].sort((a, b) => b.value - a.value)[0];
-    const last = series[series.length - 1];
-    const prev = series[series.length - 2];
+    const best = [...series].sort((a, b) => b.value - a.value)[0]!;
+    const last = series[series.length - 1]!;
+    const prev = series[series.length - 2]!;
     const change = prev.value === 0 ? 0 : ((last.value - prev.value) / prev.value) * 100;
     const biggestDrop = series
       .slice(1)
-      .map((cur, i) => ({ cur, prev: series[i], delta: cur.value - series[i].value }))
-      .sort((a, b) => a.delta - b.delta)[0];
+      .map((cur, i) => ({ cur, prev: series[i]!, delta: cur.value - series[i]!.value }))
+      .sort((a, b) => a.delta - b.delta)[0]!;
     return {
       question,
       headline: `${best.label} had the highest ${value} (${fmtNumber(best.value)}); the latest period ${last.label} ${change >= 0 ? "rose" : "fell"} ${fmtNumber(Math.abs(change))}% versus ${prev.label}.`,
@@ -140,8 +140,8 @@ export function answerQuestion(question: string, ds: Dataset, profile?: ColumnPr
   // Region
   if (p.regionColumn && has(q, "region", "location", "city", "state", "country", "territory", "market", "zone")) {
     const grouped = groupSum(ds, p.regionColumn, value);
-    const top = grouped[0];
-    const bottom = grouped[grouped.length - 1];
+    const top = grouped[0]!;
+    const bottom = grouped[grouped.length - 1]!;
     return {
       question,
       headline: `${top.label} is the strongest ${p.regionColumn} with ${value} of ${fmtNumber(top.value)}.`,
@@ -176,8 +176,8 @@ export function answerQuestion(question: string, ds: Dataset, profile?: ColumnPr
     has(q, "product", "item", "sku", "category", "top", "best", "worst", "poor", "highest", "lowest", "attention")
   ) {
     const grouped = groupSum(ds, p.productColumn, value);
-    const worst = grouped[grouped.length - 1];
-    const top = grouped[0];
+    const worst = grouped[grouped.length - 1]!;
+    const top = grouped[0]!;
     const wantsWorst = has(q, "worst", "poor", "lowest", "attention", "losing", "declin");
     const focus = wantsWorst ? worst : top;
     return {
@@ -243,16 +243,17 @@ export function answerQuestion(question: string, ds: Dataset, profile?: ColumnPr
       },
       { label: "Maximum", value: fmtNumber(kpis.max) },
       { label: "Minimum", value: fmtNumber(kpis.min) },
-      ...(grouped.length > 0 ? [{ label: "Largest contributor", value: `${grouped[0].label} — ${fmtNumber(grouped[0].value)}` }] : []),
+      ...(grouped.length > 0 ? [{ label: "Largest contributor", value: `${grouped[0]!.label} — ${fmtNumber(grouped[0]!.value)}` }] : []),
     ],
-    chart:
-      grouped.length > 1
-        ? {
-            type: "bar",
+    ...(grouped.length > 1
+      ? {
+          chart: {
+            type: "bar" as const,
             title: `${value} by ${p.productColumn}`,
             data: grouped.slice(0, 12).map((g) => ({ label: g.label, value: g.value })),
-          }
-        : undefined,
+          },
+        }
+      : {}),
     sourceRows: ds.rows.slice(0, 10),
   };
 }
